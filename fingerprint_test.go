@@ -110,34 +110,70 @@ func createTestFile(t *testing.T, fileName, content string) *os.File {
 	return file
 }
 
-func TestFingerPrintedPath(t *testing.T) {
+func TestFingerPrintedName(t *testing.T) {
 	testCases := []struct {
 		fileName, expectedFileName, content string
 	}{
 		{
 			"a.js",
-			filepath.Join(testDir, "a-0cc175b9c0.js"),
+			"a-0cc175b9c0.js",
 			"a",
 		},
 		{
 			"test.css",
-			filepath.Join(testDir, "test-098f6bcd46.css"),
+			"test-098f6bcd46.css",
 			"test",
 		},
 	}
 
 	for _, testCase := range testCases {
 		f := createTestFile(t, testCase.fileName, testCase.content)
-		file := makeFingerPrintedFile(f)
+		file := makeFingerPrintedFile(f, "")
+
+		name, err := file.FingerPrintedName()
+		if err != nil {
+			t.Error(err)
+		}
+		if name != testCase.expectedFileName {
+			t.Errorf(
+				"finger printed name failed for %s, got %s",
+				testCase.expectedFileName,
+				name,
+			)
+		}
+	}
+}
+
+func TestFingerPrintedPath(t *testing.T) {
+	testCases := []struct {
+		fileName, expectedPath, destDir, content string
+	}{
+		{
+			"a.js",
+			filepath.Join(testDir, "a-0cc175b9c0.js"),
+			"",
+			"a",
+		},
+		{
+			"test.css",
+			filepath.Join("dest", "test-098f6bcd46.css"),
+			"dest",
+			"test",
+		},
+	}
+
+	for _, testCase := range testCases {
+		f := createTestFile(t, testCase.fileName, testCase.content)
+		file := makeFingerPrintedFile(f, testCase.destDir)
 
 		path, err := file.FingerPrintedPath()
 		if err != nil {
 			t.Error(err)
 		}
-		if path != testCase.expectedFileName {
+		if path != testCase.expectedPath {
 			t.Errorf(
 				"finger printed path failed for %s, got %s",
-				testCase.expectedFileName,
+				testCase.expectedPath,
 				path,
 			)
 		}
@@ -170,7 +206,7 @@ func TestCompileAndWriteFiles(t *testing.T) {
 		},
 	)
 
-	if err := CompileAndWriteFiles(testPaths); err != nil {
+	if err := CompileAndWriteFiles(testPaths, ""); err != nil {
 		t.Error(err)
 	}
 }

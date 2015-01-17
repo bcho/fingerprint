@@ -14,14 +14,15 @@ import (
 const (
 	length           = 10             // Fingerpriting length.
 	magicFingerPrint = "feeling_good" // Initial fingerprinting
+	magicDestDir     = ""             // Use original parent dir by setting destDir to empty string.
 )
 
 var hasher = md5.Sum
 
 // Hashed file.
 type FingerPrintedFile struct {
-	fingerPrint string
-	content     []byte
+	fingerPrint, destDir string
+	content              []byte
 	*os.File
 }
 
@@ -33,7 +34,7 @@ func Compile(content []byte) string {
 }
 
 // Generate fingerprints for files.
-func CompileFiles(filePaths []string) ([]*FingerPrintedFile, error) {
+func CompileFiles(filePaths []string, destDir string) ([]*FingerPrintedFile, error) {
 	var files []*FingerPrintedFile
 
 	for _, path := range filePaths {
@@ -42,15 +43,17 @@ func CompileFiles(filePaths []string) ([]*FingerPrintedFile, error) {
 			return nil, err
 		}
 
-		files = append(files, makeFingerPrintedFile(f))
+		files = append(files, makeFingerPrintedFile(f, destDir))
 	}
 
 	return files, nil
 }
 
 // Generate fingerprints and write it to files.
-func CompileAndWriteFiles(files []string) error {
-	hashedFiles, err := CompileFiles(files)
+//
+// If destDir is empty string, use the same dir as the original file.
+func CompileAndWriteFiles(files []string, destDir string) error {
+	hashedFiles, err := CompileFiles(files, destDir)
 	if err != nil {
 		return err
 	}
@@ -74,8 +77,13 @@ func CompileAndWriteFiles(files []string) error {
 	return nil
 }
 
-func makeFingerPrintedFile(f *os.File) *FingerPrintedFile {
-	return &FingerPrintedFile{magicFingerPrint, nil, f}
+func makeFingerPrintedFile(f *os.File, destDir string) *FingerPrintedFile {
+	return &FingerPrintedFile{
+		magicFingerPrint,
+		destDir,
+		nil,
+		f,
+	}
 }
 
 func (file *FingerPrintedFile) shouldCompiled() error {
@@ -109,14 +117,17 @@ func (file *FingerPrintedFile) FingerPrintedName() (string, error) {
 }
 
 func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
-	parent, _ := filepath.Split(file.Name())
+	parentDir := file.destDir
+	if parentDir == magicDestDir {
+		parentDir, _ = filepath.Split(file.Name())
+	}
 
 	fileName, err := file.FingerPrintedName()
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(parent, fileName), nil
+	return filepath.Join(parentDir, fileName), nil
 }
 
 // Get filename from file path.
