@@ -78,28 +78,45 @@ func makeFingerPrintedFile(f *os.File) *FingerPrintedFile {
 	return &FingerPrintedFile{magicFingerPrint, nil, f}
 }
 
-func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
+func (file *FingerPrintedFile) shouldCompiled() error {
 	if file.fingerPrint == magicFingerPrint {
 		content, err := ioutil.ReadAll(file)
 		if err != nil {
-			return "", err
+			return err
 		}
 		file.content = content
 		file.fingerPrint = Compile(content)
 	}
 
-	parent, fileNameWithExt := filepath.Split(file.Name())
+	return nil
+}
+
+func (file *FingerPrintedFile) FingerPrintedName() (string, error) {
+	if err := file.shouldCompiled(); err != nil {
+		return "", err
+	}
+
+	_, fileNameWithExt := filepath.Split(file.Name())
 	fileExt := filepath.Ext(fileNameWithExt)
 	fileName := getFileName(fileNameWithExt)
 
-	fingerPrinted := fmt.Sprintf(
+	return fmt.Sprintf(
 		"%s-%s%s", // TODO custom fmt
 		fileName,
 		file.fingerPrint,
 		fileExt,
-	)
+	), nil
+}
 
-	return filepath.Join(parent, fingerPrinted), nil
+func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
+	parent, _ := filepath.Split(file.Name())
+
+	fileName, err := file.FingerPrintedName()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(parent, fileName), nil
 }
 
 // Get filename from file path.
