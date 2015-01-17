@@ -1,6 +1,7 @@
 // $ ./finger style.css
 // $ ./finger .
 // $ ./finger -r .
+// $ ./finger -r . -o dest/
 package main
 
 import (
@@ -16,10 +17,12 @@ import (
 func main() {
 	var (
 		recursive   bool
+		destDir     string
 		filesOrDirs []string
 	)
 
-	flag.BoolVar(&recursive, "r", false, "fingerprint directories recursively")
+	flag.BoolVar(&recursive, "r", false, "")
+	flag.StringVar(&destDir, "o", "", "")
 	flag.Parse()
 
 	filesOrDirs = flag.Args()
@@ -40,47 +43,53 @@ func main() {
 		}
 
 		if stat.IsDir() {
-			if err = compileDir(source, recursive); err != nil {
+			if err = compileDir(source, destDir, recursive); err != nil {
 				hanleError(err)
 			}
 		} else {
-			if err = compileFile(source); err != nil {
+			if err = compileFile(source, destDir); err != nil {
 				hanleError(err)
 			}
 		}
 	}
 }
 
-func compileFile(source string) error {
-	return fingerprint.CompileAndWriteFiles([]string{source})
+func compileFile(source, destDir string) error {
+	return fingerprint.CompileAndWriteFiles([]string{source}, destDir)
 }
 
-func compileDir(source string, recursive bool) error {
+func compileDir(source, destDir string, recursive bool) error {
 	stats, err := ioutil.ReadDir(source)
 	if err != nil {
 		return err
 	}
 
-	var files, dirs []string
+	var files []string
+	var dirs []struct{ src, dest string }
 	for _, stat := range stats {
-		fullPath := filepath.Join(source, stat.Name())
+		name := stat.Name()
+		fullPath := filepath.Join(source, name)
 
 		if stat.IsDir() {
 			if recursive {
-				dirs = append(dirs, fullPath)
+				dir := struct{ src, dest string }{
+					fullPath,
+					filepath.Join(destDir, name),
+				}
+				dirs = append(dirs, dir)
 			}
 		} else {
-			// TODO check file type?
+			// XXX check file type?
 			files = append(files, fullPath)
 		}
 	}
 
-	if err = fingerprint.CompileAndWriteFiles(files); err != nil {
+	if err = fingerprint.CompileAndWriteFiles(files, destDir); err != nil {
 		return err
 	}
 
 	for _, subPath := range dirs {
-		if err = compileDir(subPath, true); err != nil {
+		if err = compileDir(subPath.src, subPath.dest, true); err != nil {
 			return err
 		}
 	}
@@ -92,8 +101,9 @@ func showUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: finger [OPTIONS] SOURCE...
 Fingerprinting files.
 
-Options:
+Arguments & options:
   -r                    fingerprinting directories recursively.
+  -o DEST               output directory, defaults to original directory.
 `)
 }
 

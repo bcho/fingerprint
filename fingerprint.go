@@ -53,14 +53,18 @@ func CompileFiles(filePaths []string, destDir string) ([]*FingerPrintedFile, err
 //
 // If destDir is empty string, use the same dir as the original file.
 func CompileAndWriteFiles(files []string, destDir string) error {
-	hashedFiles, err := CompileFiles(files, destDir)
+	compiledFiles, err := CompileFiles(files, destDir)
 	if err != nil {
 		return err
 	}
 
-	for _, file := range hashedFiles {
+	for _, file := range compiledFiles {
 		info, err := file.Stat()
 		if err != nil {
+			return err
+		}
+
+		if err := file.prepareFingerPrintedDir(); err != nil {
 			return err
 		}
 
@@ -68,6 +72,7 @@ func CompileAndWriteFiles(files []string, destDir string) error {
 		if err != nil {
 			return err
 		}
+
 		err = ioutil.WriteFile(path, file.content, info.Mode())
 		if err != nil {
 			return err
@@ -86,7 +91,7 @@ func makeFingerPrintedFile(f *os.File, destDir string) *FingerPrintedFile {
 	}
 }
 
-func (file *FingerPrintedFile) shouldCompiled() error {
+func (file *FingerPrintedFile) compile() error {
 	if file.fingerPrint == magicFingerPrint {
 		content, err := ioutil.ReadAll(file)
 		if err != nil {
@@ -99,8 +104,23 @@ func (file *FingerPrintedFile) shouldCompiled() error {
 	return nil
 }
 
+func (file *FingerPrintedFile) prepareFingerPrintedDir() error {
+	dir := file.FingerPrintedDir()
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		mode := os.ModeDir | os.ModePerm // XXX review this mode
+		if err = os.MkdirAll(dir, mode); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (file *FingerPrintedFile) FingerPrintedName() (string, error) {
-	if err := file.shouldCompiled(); err != nil {
+	if err := file.compile(); err != nil {
 		return "", err
 	}
 
@@ -116,18 +136,22 @@ func (file *FingerPrintedFile) FingerPrintedName() (string, error) {
 	), nil
 }
 
-func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
+func (file *FingerPrintedFile) FingerPrintedDir() string {
 	parentDir := file.destDir
 	if parentDir == magicDestDir {
 		parentDir, _ = filepath.Split(file.Name())
 	}
 
+	return parentDir
+}
+
+func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
 	fileName, err := file.FingerPrintedName()
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(parentDir, fileName), nil
+	return filepath.Join(file.FingerPrintedDir(), fileName), nil
 }
 
 // Get filename from file path.
