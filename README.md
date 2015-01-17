@@ -27,9 +27,7 @@ fingerprint.CompileAndWriteFiles([]string{
 
 ## API
 
-- `Compile`
-- `CompileFiles`
-- `CompileAndWriteFiles`
+See [godoc](https://godoc.org/github.com/bcho/fingerprint).
 
 
 ## Commandline
