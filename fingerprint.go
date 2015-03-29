@@ -59,22 +59,7 @@ func CompileAndWriteFiles(files []string, destDir string) error {
 	}
 
 	for _, file := range compiledFiles {
-		info, err := file.Stat()
-		if err != nil {
-			return err
-		}
-
-		if err := file.prepareFingerPrintedDir(); err != nil {
-			return err
-		}
-
-		path, err := file.FingerPrintedPath()
-		if err != nil {
-			return err
-		}
-
-		err = ioutil.WriteFile(path, file.content, info.Mode())
-		if err != nil {
+		if err := file.WriteCompiledFile(); err != nil {
 			return err
 		}
 	}
@@ -152,6 +137,29 @@ func (file *FingerPrintedFile) FingerPrintedPath() (string, error) {
 	}
 
 	return filepath.Join(file.FingerPrintedDir(), fileName), nil
+}
+
+func (file *FingerPrintedFile) WriteCompiledFile() error {
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	if err := file.prepareFingerPrintedDir(); err != nil {
+		return err
+	}
+
+	path, err := file.FingerPrintedPath()
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(path, file.content, info.Mode())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Get filename from file path.
