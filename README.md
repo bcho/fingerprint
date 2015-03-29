@@ -17,7 +17,8 @@ var compiled, _ := fingerprint.CompileFiles([]string{
 }, "")
 
 for _, file := range compiled {
-	print(file.FingerPrintedPath())
+        path, _ := file.FingerPrintedPath()
+        print(path)
 }
 
 fingerprint.CompileAndWriteFiles([]string{
